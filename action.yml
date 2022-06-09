@@ -1,0 +1,87 @@
+name: 'Build Test .NET App'
+description: 'I build, test, and upload artifacts for a .NET web app.'
+inputs:
+  solution:
+    description: Solution path and solution file name
+    required: true
+  config:
+     description: configuration parameter for dotnet
+     required: true
+     default: Release
+  cs-proj-file:
+     description: cs proj file to created files for publishing
+     required: true
+     default: VALUEMISSING
+  published-files:
+     description: name of published files
+     required: true
+     default: myapp
+runs:
+  using: "composite"
+  steps:
+    
+    - uses: actions/checkout@v2
+
+    # .NET 6 is already installed on hosted runners by default. If 
+    # it was missing, you can use the step below to install it
+    #- name: Setup .NET Core 6
+    #  uses: actions/setup-dotnet@v1
+    #  with:
+    #    dotnet-version: 6.0.x
+    
+    - name: Restore dependencies
+      run: dotnet restore "${{ inputs.solution }}"
+      shell: bash
+    
+    - name: Build
+      run: dotnet build "${{ inputs.solution }}" --configuration ${{ inputs.config }} --no-restore
+      shell: bash
+    
+    - name: Test
+      run: |
+        dotnet test "${{ inputs.solution }}" --no-restore --verbosity normal  --logger "junit;LogFilePath=${{ github.workspace }}/results/test-results.xml"
+      shell: bash
+        
+    # create a test summary markdown file 
+    # if you don't specify an output file, it will automatically add 
+    # as a job summary. If you specify an output file, you have to 
+    # create your own step of adding it to the job summary. I am 
+    # intentionally doing that to show job summaries
+    - name: Create test summary
+      uses: test-summary/action@v1
+      with:
+        paths: ${{ github.workspace }}/results/*.xml
+        output: ${{ github.workspace }}/results/summary.md
+      if: always()
+
+    # I am adding the test results to the Job Summary
+    - name: Add Test Results To Job Summary
+      run: |
+        echo "TEST RESULTS:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY # this is a blank line
+        cat "${{ github.workspace }}/results/summary.md" >> $GITHUB_STEP_SUMMARY
+      if: always()
+      
+        - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v2.2.0
+      with:
+        # Artifact name
+        name: mywebappbuildartifacts
+        # A file, directory or wildcard pattern that describes what to upload
+        path: mywebapp-files/**
+        # The desired behavior if no files are found using the provided path.
+        if-no-files-found: error
+        # Duration after which artifact will expire in days. 0 means using default retention.
+        retention-days: 90
+        
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v2.2.0
+      with:
+        # Artifact name
+        name:  ${{ inputs.published-files }}
+        # A file, directory or wildcard pattern that describes what to upload
+        path: ${{ inputs.published-files }}/**
+        # The desired behavior if no files are found using the provided path.
+        if-no-files-found: error
+        # Duration after which artifact will expire in days. 0 means using default retention.
+        retention-days: 90
