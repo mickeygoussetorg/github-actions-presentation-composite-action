@@ -67,6 +67,7 @@ runs:
       run: |
         dotnet publish "${{ inputs.cs-proj-file }}" -c Release -o ${{ inputs.published-files }}
         echo "I've created my artifacts to upload" >> $GITHUB_STEP_SUMMARY
+      shell: bash
       
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.0
